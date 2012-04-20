@@ -2,6 +2,8 @@ jQuery(function($) {
   var app = new ExplorerApp({
     el: $('.recline-app')
   })
+  // this is causing an error, race condition maybe?
+  // Backbone.history.start();
 });
 
 var ExplorerApp = Backbone.View.extend({
@@ -11,6 +13,7 @@ var ExplorerApp = Backbone.View.extend({
   },
 
   initialize: function() {
+    var self = this
     this.el = $(this.el);
     this.explorer = null;
     this.explorerDiv = $('.data-explorer-here');
@@ -34,32 +37,15 @@ var ExplorerApp = Backbone.View.extend({
         $('body').attr('style', 'padding-top: 0px');
       }
     }
-    var dataset = null;
-    // special cases for demo / memory dataset
-    if (state.url === 'demo' || state.backend === 'memory') {
-      dataset = localDataset();
-    }
-    else if (state.dataset || state.url) {
-      dataset = recline.Model.Dataset.restore(state);
-    }
-    if (dataset) {
-      this.createExplorer(dataset, state);
-    }
-  },
 
-  viewHome: function() {
-    this.switchView('home');
-  },
-
-  viewExplorer: function() {
-    this.router.navigate('explorer');
-    this.switchView('explorer');
-  },
-
-  switchView: function(path) {
-    $('.backbone-page').hide(); 
-    var cssClass = path.replace('/', '-');
-    $('.page-' + cssClass).show();
+    if (state.dataset || state.url) {
+      var dataset = recline.Model.Dataset.restore(state);
+      self.createExplorer(dataset, state);
+    } else {
+      localDataset(function(dataset) {
+        self.createExplorer(dataset, state);
+      })
+    }
   },
 
 
@@ -163,9 +149,29 @@ var ExplorerApp = Backbone.View.extend({
 });
 
 // provide a demonstration in memory dataset
-function localDataset() {
-  var dataset = Fixture.getDataset();
-  dataset.queryState.addFacet('country');
-  return dataset;
+function localDataset(callback) {
+  var datasetId = 'test-dataset';
+  var inData = {
+    metadata: {
+      title: 'My Test Dataset'
+      , name: '1-my-test-dataset' 
+      , id: datasetId
+    },
+    fields: [{id: 'x'}, {id: 'y'}, {id: 'z'}, {id: 'country'}, {id: 'label'},{id: 'lat'},{id: 'lon'}],
+    documents: [
+      {id: 0, x: 1, y: 2, z: 3, country: 'DE', label: 'first', lat:52.56, lon:13.40}
+      , {id: 1, x: 2, y: 4, z: 6, country: 'UK', label: 'second', lat:54.97, lon:-1.60}
+      , {id: 2, x: 3, y: 6, z: 9, country: 'US', label: 'third', lat:40.00, lon:-75.5}
+      , {id: 3, x: 4, y: 8, z: 12, country: 'UK', label: 'fourth', lat:57.27, lon:-6.20}
+      , {id: 4, x: 5, y: 10, z: 15, country: 'UK', label: 'fifth', lat:51.58, lon:0}
+      , {id: 5, x: 6, y: 12, z: 18, country: 'DE', label: 'sixth', lat:51.04, lon:7.9}
+    ]
+  };
+  var backend = new recline.Backend.PouchFilter();
+  backend.addDataset(inData, function(err, resp) {
+    var dataset = new recline.Model.Dataset({id: datasetId}, backend);
+    // dataset.queryState.addFacet('country');
+    callback(dataset);
+  });
 }
 
