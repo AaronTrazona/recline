@@ -2,7 +2,6 @@ jQuery(function($) {
   var app = new ExplorerApp({
     el: $('.recline-app')
   })
-  // this is causing an error, race condition maybe?
   // Backbone.history.start();
 });
 
@@ -37,15 +36,9 @@ var ExplorerApp = Backbone.View.extend({
         $('body').attr('style', 'padding-top: 0px');
       }
     }
-
-    if (state.dataset || state.url) {
-      var dataset = recline.Model.Dataset.restore(state);
+    localDataset(function(dataset) {
       self.createExplorer(dataset, state);
-    } else {
-      localDataset(function(dataset) {
-        self.createExplorer(dataset, state);
-      })
-    }
+    })
   },
 
 
@@ -172,12 +165,12 @@ function localDataset(callback) {
   // var dataset = new recline.Model.Dataset({id: datasetId}, backend);
   // callback(dataset)
   backend.addDataset(inData, function(err, db) {
-    // db.bulkDocs({docs: documents}, function(err, resp) {
+    console.log(JSON.stringify(documents))
+    db.bulkDocs({docs: documents}, function(err, resp) {
       var dataset = new recline.Model.Dataset({id: datasetId}, backend);
       // dataset.queryState.addFacet('country');
       callback(dataset);
       
-    // })
+    })
   });
 }
-
