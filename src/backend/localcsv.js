@@ -12,8 +12,7 @@ this.recline.Backend = this.recline.Backend || {};
     var reader = new FileReader();
     // TODO
     reader.onload = function(e) {
-      var dataset = my.csvToDataset(e.target.result, options);
-      callback(dataset);
+      my.csvToDataset(callback, e.target.result, options);
     };
     reader.onerror = function (e) {
       alert('Failed to load file. Code: ' + e.target.error.code);
@@ -21,7 +20,7 @@ this.recline.Backend = this.recline.Backend || {};
     reader.readAsText(file, encoding);
   };
 
-  my.csvToDataset = function(csvString, options) {
+  my.csvToDataset = function(callback, csvString, options) {
     var out = my.parseCSV(csvString, options);
     fields = _.map(out[0], function(cell) {
       return { id: cell, label: cell };
@@ -33,8 +32,7 @@ this.recline.Backend = this.recline.Backend || {};
       });
       return _doc;
     });
-    var dataset = recline.Backend.createDataset(data, fields);
-    return dataset;
+    var dataset = recline.Backend.createPouchDataset(callback, data, fields);
   };
 
   // Converts a Comma Separated Values string into an array of arrays.

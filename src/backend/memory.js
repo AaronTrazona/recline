@@ -40,7 +40,6 @@ this.recline.Backend = this.recline.Backend || {};
     return dataset;
   };
 
-
   // ## Memory Backend - uses in-memory data
   //
   // To use it you should provide in your constructor data:

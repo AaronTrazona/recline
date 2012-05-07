@@ -2,6 +2,36 @@ this.recline = this.recline || {};
 this.recline.Backend = this.recline.Backend || {};
 
 (function($, my) {
+  my.createPouchDataset = function(callback, data, fields, metadata) {
+    if (!metadata) {
+      metadata = {};
+    }
+    if (!metadata.id) {
+      metadata.id = String(Math.floor(Math.random() * 100000000) + 1);
+    }
+    var backend = new recline.Backend.PouchFilter()
+    var datasetInfo = {
+      metadata: metadata
+    };
+    if (fields) {
+      datasetInfo.fields = fields;
+    } else {
+      if (data) {
+        datasetInfo.fields = _.map(data[0], function(value, key) {
+          return {id: key}
+        })
+      }
+    }
+    
+    backend.addDataset(datasetInfo)
+    backend.makePouch(metadata.id, function (err, pouch) {
+      pouch.bulkDocs({docs: data}, function(err, resp) {
+        var dataset = new recline.Model.Dataset({id: metadata.id}, backend)
+        callback(dataset)
+      })
+    })
+  };
+  
   my.PouchFilter = my.Base.extend({
     __type__: 'pouchfilter',
     initialize: function() {
@@ -32,7 +62,8 @@ this.recline.Backend = this.recline.Backend || {};
           if (!rawDataset) rawDataset = {}
           self.makePouch(model.id, function(err, pouch) {
             self.pouch[model.id].allDocs({include_docs: true}, function(err, resp) {
-              self.crossfilter[model.id] = crossfilter(_.map(resp.rows, function(r) { return r.doc }))
+              var rows = _.map(resp.rows, function(r) { return r.doc })
+              self.crossfilter[model.id] = crossfilter(rows)
               model.docCount = resp.total_rows
               dfd.resolve(model)
             })
@@ -69,13 +100,10 @@ this.recline.Backend = this.recline.Backend || {};
       var start = queryObj.from;
       
       var firstField = self.datasets[model.id].fields[0]
-      var filter = self._makeFilter(model, firstField)
-      
-      console.log('query', queryObj)
+      var filter = self._makeFilter(model, firstField.id)
       
       // var results = this._applyFilters(model, queryObj);
       // this._applyFreeTextQuery(model, results, queryObj);
-      
       if (queryObj.sort && queryObj.sort.length > 0) {
         // dont support multiple sorts for now but maintain api compat with ES
         var sortObj = _.first(queryObj.sort)
@@ -86,13 +114,14 @@ this.recline.Backend = this.recline.Backend || {};
         var results = filter.top(numRows)
       }
       
+      
       // out.facets = this._computeFacets(results, queryObj);
       
-      var total = results.length
+      var total = self.crossfilter[model.id].size()
       resultsObj = this._docsToQueryResult(results)
       _.extend(out, resultsObj)
       out.total = total
-      console.log(out)
+
       dfd.resolve(out)
       return dfd.promise()
     },

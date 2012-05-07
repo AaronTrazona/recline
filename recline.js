@@ -3496,7 +3496,7 @@ this.recline.Backend = this.recline.Backend || {};
       });
       return _doc;
     });
-    var dataset = recline.Backend.createDataset(data, fields);
+    var dataset = recline.Backend.createPouchDataset(data, fields);
     return dataset;
   };
 
@@ -3673,7 +3673,6 @@ this.recline.Backend = this.recline.Backend || {};
     dataset.fetch();
     return dataset;
   };
-
 
   // ## Memory Backend - uses in-memory data
   //
