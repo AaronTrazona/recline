@@ -2,7 +2,6 @@ jQuery(function($) {
   var app = new ExplorerApp({
     el: $('.recline-app')
   })
-  // Backbone.history.start();
 });
 
 var ExplorerApp = Backbone.View.extend({
@@ -12,7 +11,6 @@ var ExplorerApp = Backbone.View.extend({
   },
 
   initialize: function() {
-    var self = this
     this.el = $(this.el);
     this.explorer = null;
     this.explorerDiv = $('.data-explorer-here');
@@ -36,11 +34,36 @@ var ExplorerApp = Backbone.View.extend({
         $('body').attr('style', 'padding-top: 0px');
       }
     }
-    localDataset(function(dataset) {
-      self.createExplorer(dataset, state);
-    })
+    var dataset = null;
+    // special cases for demo / memory dataset
+    if (state.url === 'demo' || state.backend === 'memory') {
+      dataset = localDataset();
+    }
+    else if (state.url === 'pouch') {
+      dataset = pouchDataset();
+    }
+    else if (state.dataset || state.url) {
+      dataset = recline.Model.Dataset.restore(state);
+    }
+    if (dataset) {
+      this.createExplorer(dataset, state);
+    }
   },
 
+  viewHome: function() {
+    this.switchView('home');
+  },
+
+  viewExplorer: function() {
+    this.router.navigate('explorer');
+    this.switchView('explorer');
+  },
+
+  switchView: function(path) {
+    $('.backbone-page').hide(); 
+    var cssClass = path.replace('/', '-');
+    $('.page-' + cssClass).show();
+  },
 
   // make Explorer creation / initialization in a function so we can call it
   // again and again
@@ -142,7 +165,13 @@ var ExplorerApp = Backbone.View.extend({
 });
 
 // provide a demonstration in memory dataset
-function localDataset(callback) {
+function localDataset() {
+  var dataset = Fixture.getDataset();
+  dataset.queryState.addFacet('country');
+  return dataset;
+}
+
+function pouchDataset(callback) {
   var datasetId = 'testDataset';
   var inData = {
     metadata: {
@@ -160,13 +189,13 @@ function localDataset(callback) {
     , {_id: "4", x: 5, y: 10, z: 15, country: 'UK', label: 'fifth', lat:51.58, lon:0}
     , {_id: "5", x: 6, y: 12, z: 18, country: 'DE', label: 'sixth', lat:51.04, lon:7.9}
   ]
-  var backend = new recline.Backend.PouchFilter();
-  backend.addDataset(inData, function(err, db) {
-    db.bulkDocs({docs: documents}, function(err, resp) {
+  var backend = new recline.Backend.PouchFilter()
+  backend.addDataset(inData)
+  backend.makePouch(function (err, pouch) {
+    pouch.bulkDocs({docs: documents}, function(err, resp) {
       var dataset = new recline.Model.Dataset({id: datasetId}, backend);
       // dataset.queryState.addFacet('country');
       callback(dataset);
-      
     })
-  });
+  })
 }

@@ -4,7 +4,7 @@ this.recline.Backend = this.recline.Backend || {};
 (function($, my) {
   my.PouchFilter = my.Base.extend({
     __type__: 'pouchfilter',
-    initialize: function(callback) {
+    initialize: function() {
       var datasets = localStorage.getItem('datasets')
       
       if (datasets) this.datasets = JSON.parse(datasets)
@@ -13,47 +13,39 @@ this.recline.Backend = this.recline.Backend || {};
       this.pouch = {}
       this.crossfilter = {}
       this.pouchfilters = {}
-      
-      var results = {}
-      _.each(_.keys(this.datasets), function(dataset) {
-        results[dataset] = function(done) {
-          new Pouch('idb://' + dataset, done)
-        }
-      })
-
-      async.parallel(results, function(err, pouches) {
-        if (err) console.error(err)
-        this.pouch = pouches
+    },
+    makePouch: function(id, callback) {
+      if (this.pouch[id]) return callback(false, this.pouch[id])
+      new Pouch('idb://' + id, function(err, db) {
+        if (err) return callback(err)
+        self.pouch[data.metadata.id] = db
+        callback(false, db)
       })
     },
     addDataset: function(data, callback) {
       var self = this
       this.datasets[data.metadata.id] = $.extend(true, {}, data);
       localStorage.setItem('datasets', JSON.stringify(this.datasets))
-      new Pouch('idb://' + data.metadata.id, function(err, db) {
-        if (err) return callback(err)
-        pizza = self
-        self.pouch[data.metadata.id] = db
-        callback(false, db)
-      })
+      
     },
     sync: function(method, model, options) {
       var self = this;
       var dfd = $.Deferred();
       if (method === "read") {
         if (model.__type__ == 'Dataset') {
-          var datasets = localStorage.getItem('datasets')
-          if (datasets) var rawDataset = JSON.parse(datasets)[model.id]
-          else var rawDataset = {}
-          self.pouch[model.id].allDocs({include_docs: true}, function(err, resp) {
-            self.crossfilter[model.id] = crossfilter(_.map(resp.rows, function(r) { return r.doc }))
-            model.docCount = resp.total_rows
-            console.log(model)
-            dfd.resolve(model)
+          var rawDataset = self.datasets[model.id]
+          if (!rawDataset) rawDataset = {}
+          makePouch(function(err, pouch) {
+            self.pouch[model.id].allDocs({include_docs: true}, function(err, resp) {
+              self.crossfilter[model.id] = crossfilter(_.map(resp.rows, function(r) { return r.doc }))
+              model.docCount = resp.total_rows
+              console.log(model)
+              dfd.resolve(model)
+            })
+
+            model.set(rawDataset.metadata);
+            model.fields.reset(rawDataset.fields);
           })
-          
-          model.set(rawDataset.metadata);
-          model.fields.reset(rawDataset.fields);
         }
         return dfd.promise();
       } else if (method === 'update') {
