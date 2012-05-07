@@ -38,15 +38,16 @@ var ExplorerApp = Backbone.View.extend({
     // special cases for demo / memory dataset
     if (state.url === 'demo' || state.backend === 'memory') {
       dataset = localDataset();
-    }
-    else if (state.url === 'pouch') {
-      dataset = pouchDataset();
-    }
-    else if (state.dataset || state.url) {
+    } else if (state.dataset || state.url) {
       dataset = recline.Model.Dataset.restore(state);
     }
-    if (dataset) {
-      this.createExplorer(dataset, state);
+    if (state.url === 'pouch') {
+      var self = this
+      pouchDataset(function(err, dataset) {
+        self.createExplorer(dataset, state)
+      })
+    } else if (dataset) {
+      this.createExplorer(dataset, state)
     }
   },
 
@@ -191,11 +192,11 @@ function pouchDataset(callback) {
   ]
   var backend = new recline.Backend.PouchFilter()
   backend.addDataset(inData)
-  backend.makePouch(function (err, pouch) {
+  backend.makePouch(datasetId, function (err, pouch) {
     pouch.bulkDocs({docs: documents}, function(err, resp) {
       var dataset = new recline.Model.Dataset({id: datasetId}, backend);
       // dataset.queryState.addFacet('country');
-      callback(dataset);
+      callback(false, dataset);
     })
   })
 }

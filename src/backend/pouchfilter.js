@@ -5,28 +5,23 @@ this.recline.Backend = this.recline.Backend || {};
   my.PouchFilter = my.Base.extend({
     __type__: 'pouchfilter',
     initialize: function() {
-      var datasets = localStorage.getItem('datasets')
-      
-      if (datasets) this.datasets = JSON.parse(datasets)
-      else this.datasets = {}
-      
+      this.datasets = {}
       this.pouch = {}
       this.crossfilter = {}
       this.pouchfilters = {}
     },
     makePouch: function(id, callback) {
+      var self = this
       if (this.pouch[id]) return callback(false, this.pouch[id])
       new Pouch('idb://' + id, function(err, db) {
         if (err) return callback(err)
-        self.pouch[data.metadata.id] = db
+        self.pouch[id] = db
         callback(false, db)
       })
     },
     addDataset: function(data, callback) {
       var self = this
-      this.datasets[data.metadata.id] = $.extend(true, {}, data);
-      localStorage.setItem('datasets', JSON.stringify(this.datasets))
-      
+      this.datasets[data.metadata.id] = $.extend(true, {}, data)
     },
     sync: function(method, model, options) {
       var self = this;
@@ -35,11 +30,10 @@ this.recline.Backend = this.recline.Backend || {};
         if (model.__type__ == 'Dataset') {
           var rawDataset = self.datasets[model.id]
           if (!rawDataset) rawDataset = {}
-          makePouch(function(err, pouch) {
+          self.makePouch(model.id, function(err, pouch) {
             self.pouch[model.id].allDocs({include_docs: true}, function(err, resp) {
               self.crossfilter[model.id] = crossfilter(_.map(resp.rows, function(r) { return r.doc }))
               model.docCount = resp.total_rows
-              console.log(model)
               dfd.resolve(model)
             })
 
